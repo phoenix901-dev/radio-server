@@ -1,8 +1,11 @@
+#!/bin/bash
 #Скрипт предназначен для запуска служб.
 #Используйте его от того пользователя, от которого будет работать радио.
 systemctl --user enable radio
 systemctl --user enable mpd
 systemctl --user start radio
 systemctl --user start mpd
-loginctl enable-linger
+# Без имени пользователя linger включался для текущего (root), а не для
+# radio, поэтому после логаута пользовательские службы radio умирали.
+loginctl enable-linger radio
 echo "launched"

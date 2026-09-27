@@ -1,9 +1,12 @@
+#!/bin/bash
 #установка зависимостей
 #данный скрипт поможет вам установить всё необходимое для работы вашей радиостанции.
 #Работает только на debian/ubuntu
 #выполняйте от супер пользователя.
-apt install -y icecast2 mpd mpc
-service icecast2 stop
-service icecast2 disable
-service mpd stop
-service mpd disable
+set -e
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y icecast2 mpd mpc iproute2
+systemctl stop icecast2 mpd 2>/dev/null || true
+systemctl disable icecast2 mpd 2>/dev/null || true
+echo "core packages installed, default services disabled"

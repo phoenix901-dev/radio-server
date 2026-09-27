@@ -5,7 +5,7 @@
 00 00 * * * mpc crop; mpc insert efir/time/h_00o.mp3; mpc del 1; mpc insert audio
 00 01 * * * mpc crop; mpc insert efir/time/h_01o.mp3; mpc del 1; mpc insert audio
 00 02 * * * mpc crop; mpc insert efir/time/h_02o.mp3; mpc del 1; mpc insert audio
-00 03 * * * mpc crop; mpc insert efir/time/h03o.mp3; mpc del 1; mpc insert audio
+00 03 * * * mpc crop; mpc insert efir/time/h_03o.mp3; mpc del 1; mpc insert audio
 00 04 * * * mpc crop; mpc insert efir/time/h_04o.mp3; mpc del 1; mpc insert audio
 00 05 * * * mpc crop; mpc insert efir/time/h_05o.mp3; mpc del 1; mpc insert audio
 00 06 * * * mpc crop; mpc insert efir/time/h_06o.mp3; mpc del 1; mpc insert audio
@@ -15,7 +15,7 @@
 0 10 * * * mpc crop; mpc insert efir/time/h_10o.mp3; mpc del 1; mpc insert audio
 00 11 * * * mpc crop; mpc insert efir/time/h_11o.mp3; mpc del 1; mpc insert audio
 00 12 * * * mpc crop; mpc insert efir/time/h_12o.mp3; mpc del 1; mpc insert audio
-00 13 * * * mpc crop; mpc insert efir/time/h_13o.mp3mpc del 1; mpc insert audio
+00 13 * * * mpc crop; mpc insert efir/time/h_13o.mp3; mpc del 1; mpc insert audio
 00 14 * * * mpc crop; mpc insert efir/time/h_14o.mp3; mpc del 1; mpc insert audio
 00 15 * * * mpc crop; mpc insert efir/time/h_15o.mp3; mpc del 1; mpc insert audio
 00 16 * * * mpc crop; mpc insert efir/time/h_16o.mp3; mpc del 1; mpc insert audio

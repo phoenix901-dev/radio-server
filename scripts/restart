@@ -1,2 +1,3 @@
+#!/bin/bash
 #This script will help to restart the broadcast if it crashes
 mpc play

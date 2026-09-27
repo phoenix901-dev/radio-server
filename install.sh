@@ -1,11 +1,21 @@
 #!/bin/bash
-set -e
-set -o pipefail
+set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "This script must be run as root." >&2
     exit 1
 fi
+
+# Генерация пароля для инстанса. Раньше в конфиги подставлялась строка
+# "hackme" — дефолтный пароль Icecast, из-за которого любой желающий мог
+# подключиться источником или зайти в админку.
+function gen_secret() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 16
+    else
+        od -An -N16 -tx1 /dev/urandom | tr -d ' \n'
+    fi
+}
 
 function show_help() {
     echo "Usage: $0 [OPTIONS]"
@@ -46,9 +56,17 @@ function get_free_port() {
 }
 
 function create_instance() {
-    local name="$1"
+    local name="${1:-}"
     if [ -z "$name" ]; then
         echo "Error: Instance name is required." >&2
+        exit 1
+    fi
+
+    # Имя попадает в имена пользователя, systemd-юнитов и в пути
+    # (/etc/radio-instances/$name, /var/log/$name). Без проверки имя вида
+    # "../../etc" или с пробелами ломало бы пути и юниты.
+    if ! [[ "$name" =~ ^[a-z_][a-z0-9_-]{0,30}$ ]]; then
+        echo "Error: Invalid instance name. Use lowercase letters, digits, '_' and '-' (max 31 chars, must not start with a digit)." >&2
         exit 1
     fi
 
@@ -73,7 +91,7 @@ function create_instance() {
     echo "Allocated MPD port: $mpd_port"
     echo "Allocated Icecast port: $ice_port"
 
-    # Directories
+    # Директории
     local conf_dir="/etc/radio-instances/$name"
     local music_dir="/var/lib/radio-instances/$name/music"
     local playlist_dir="/var/lib/radio-instances/$name/playlists"
@@ -85,12 +103,26 @@ function create_instance() {
     mkdir -p "$music_dir"
     mkdir -p "$playlist_dir"
     mkdir -p "$db_dir"
+    # Страховка на случай, если LogsDirectory/RuntimeDirectory не сработают:
+    # оба конфига ссылаются на эти каталоги при старте.
+    mkdir -p "$log_dir"
+    mkdir -p "$run_dir"
 
-    # Set ownership and permissions
+    # Права доступа
     chown -R "$name:$name" "$music_dir" "$playlist_dir" "$db_dir"
     chmod 750 "$music_dir" "$playlist_dir" "$db_dir"
+    chown "$name:$name" "$log_dir"
+    chmod 750 "$log_dir"
+    chown "$name:$name" "$run_dir"
+    chmod 755 "$run_dir"
     chown root:"$name" "$conf_dir"
     chmod 750 "$conf_dir"
+
+    # Пароли для этого инстанса: source/relay/admin в Icecast и source в MPD.
+    local source_pass admin_pass relay_pass
+    source_pass="$(gen_secret)"
+    admin_pass="$(gen_secret)"
+    relay_pass="$(gen_secret)"
 
     # Generate MPD config
     local mpd_conf="$conf_dir/mpd.conf"
@@ -108,7 +140,9 @@ database {
 }
 
 user               "$name"
-bind_to_address    "0.0.0.0"
+# Только loopback: MPD не имеет пароля в этой конфигурации, а bind на
+# 0.0.0.0 открывал управление плеером (порт 6600) всему интернету.
+bind_to_address    "127.0.0.1"
 port               "$mpd_port"
 
 auto_update        "yes"
@@ -120,7 +154,7 @@ audio_output {
     host        "127.0.0.1"
     port        "$ice_port"
     mount       "/stream"
-    password    "hackme"
+    password    "$source_pass"
     bitrate     "128"
     format      "44100:16:2"
 }
@@ -147,10 +181,10 @@ EOF
     </limits>
 
     <authentication>
-        <source-password>hackme</source-password>
-        <relay-password>hackme</relay-password>
+        <source-password>$source_pass</source-password>
+        <relay-password>$relay_pass</relay-password>
         <admin-user>admin</admin-user>
-        <admin-password>hackme</admin-password>
+        <admin-password>$admin_pass</admin-password>
     </authentication>
 
     <hostname>localhost</hostname>
@@ -223,9 +257,25 @@ EOF
     systemctl start "icecast-$name.service"
     systemctl start "mpd-$name.service"
 
+    # Пароли сохранены, потому что после генерации узнать их больше негде.
+    cat > "$conf_dir/credentials.txt" <<EOF
+instance=$name
+mpd_port=$mpd_port
+icecast_port=$ice_port
+icecast_source_password=$source_pass
+icecast_relay_password=$relay_pass
+icecast_admin_user=admin
+icecast_admin_password=$admin_pass
+EOF
+    chown root:root "$conf_dir/credentials.txt"
+    chmod 600 "$conf_dir/credentials.txt"
+
     echo "Instance $name created and started."
-    echo "MPD Port: $mpd_port"
+    echo "MPD Port (только localhost): $mpd_port"
     echo "Icecast Port: $ice_port"
+    echo "Icecast source password: $source_pass"
+    echo "Icecast admin login:     admin / $admin_pass"
+    echo "Учётные данные сохранены в $conf_dir/credentials.txt"
 }
 
 if [ $# -eq 0 ]; then
@@ -238,7 +288,7 @@ case "$1" in
         install_core
         ;;
     --create-instance)
-        create_instance "$2"
+        create_instance "${2:-}"
         ;;
     *)
         show_help

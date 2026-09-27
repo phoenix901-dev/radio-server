@@ -1,3 +1,4 @@
+#!/bin/bash
 #script to disable icecast2, mpd services running as root.
 #Please only execute the script as root.
 
